@@ -1,5 +1,7 @@
 #include <fgame/event.hh>
 
+#include <algorithm>
+
 namespace fgame {
 namespace core {
 
@@ -8,47 +10,37 @@ auto event_queue::hook(const event_type &ev_type,
     -> void {
 
   try {
-    // TODO: aaaa why a copyyyyyy
-    auto lookup_copy = this->callback_lookup.get();
-    lookup_copy.at(ev_type).insert(callback);
-
-    this->callback_lookup = lookup_copy;
+    this->callback_lookup.set([ev_type, callback](auto &lookup) {
+      lookup.at(ev_type).insert(callback);
+    });
   } catch (const std::out_of_range &_) {
-    this->callback_lookup.get().insert({ev_type, {callback}});
+    this->callback_lookup.set([ev_type, callback](auto &lookup) {
+      lookup.insert({ev_type, {callback}});
+    });
   }
 }
 
 auto event_queue::unhook(const event_type &ev_type,
                          const event_callback_function &callback) noexcept
     -> void {
-
-  auto lookup_copy = this->callback_lookup.get();
-  lookup_copy.at(ev_type).erase(callback);
-
-  this->callback_lookup = lookup_copy;
+  this->callback_lookup.set([ev_type, callback](auto &lookup) {
+    lookup.at(ev_type).erase(callback);
+  });
 }
 
 auto event_queue::emit(const event &ev) -> void {
-  auto queue_copy = this->queue.get();
-  queue_copy.push(ev);
-
-  this->queue = queue_copy;
+  this->queue.set([ev](auto &queue) { queue.push(ev); });
 }
 
 auto event_queue::tick() -> void {
-
   try {
-    auto queue_copy = this->queue.get();
-    const auto ev = queue_copy.front();
-
+    const auto ev = this->queue.get().front();
     const auto lookup_copy = this->callback_lookup.get();
 
-    for (const auto &callback : lookup_copy.at(ev.type)) {
-      callback(ev);
-    }
+    std::ranges::for_each(this->callback_lookup.get().at(ev.type),
+                          [ev](const auto &callback) { callback(ev); });
 
-    queue_copy.pop();
-    this->queue.set(queue_copy);
+    this->queue.set([](auto &queue) { queue.pop(); });
   } catch (const std::out_of_range &_) {
     // TODO: it should log that either the event queue is empty or there are no
     // callbacks hooked to such an event
