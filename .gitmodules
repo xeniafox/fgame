@@ -1,0 +1,3 @@
+[submodule "subprojects/mathfu"]
+	path = subprojects/mathfu
+	url = https://github.com/google/mathfu
