@@ -35,8 +35,6 @@ auto event_queue::emit(const event &ev) -> void {
 auto event_queue::tick() -> void {
   try {
     const auto ev = this->queue.get().front();
-    const auto lookup_copy = this->callback_lookup.get();
-
     std::ranges::for_each(this->callback_lookup.get().at(ev.type),
                           [ev](const auto &callback) { callback(ev); });
 
